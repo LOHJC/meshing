@@ -104,9 +104,9 @@ def generate_sphere_2_color(radius, value1, value2):
     return voxels
 
 if __name__ == "__main__":
-    sphere = generate_sphere(5)
-    diamond = generate_diamond(11)
-    sphere_2_color = generate_sphere_2_color(5, 1, 2)
+    sphere = generate_sphere(3)
+    diamond = generate_diamond(5)
+    sphere_2_color = generate_sphere_2_color(3, 1, 2)
     
     show_shape(sphere)
     show_shape(diamond)
