@@ -10,3 +10,8 @@
 ### dual contouring
 
 ## point cloud to mesh
+
+## dependencies
+- python
+- numpy
+- pyvista
