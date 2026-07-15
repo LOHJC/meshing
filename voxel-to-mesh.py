@@ -166,6 +166,16 @@ def marching_cubes(voxel_data):
     # This function would convert voxel data to a mesh representation
     pass
 
+def surface_nets(voxel_data):
+    # Placeholder for the surface nets algorithm
+    # This function would convert voxel data to a mesh representation
+    pass
+
+def dual_contouring(voxel_data):
+    # Placeholder for the dual contouring algorithm
+    # This function would convert voxel data to a mesh representation
+    pass
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Convert voxels to mesh")
     parser.add_argument("--shape", type=str, choices=["sphere", "cube"], default="sphere",
