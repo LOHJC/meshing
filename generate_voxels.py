@@ -103,15 +103,49 @@ def generate_sphere_2_color(radius, value1, value2):
                     
     return voxels
 
+def generate_cube(size, value):
+    # Initialize an empty 3D grid/array
+    voxels = np.zeros((size, size, size), dtype=int)
+    
+    # Fill the entire cube with the specified value
+    voxels.fill(value)
+    
+    return voxels
+
+def generate_cube_2_color(size_full, size_cube, value1, value2):
+    # Initialize an empty 3D grid/array
+    voxels = np.zeros((size_full, size_full, size_full), dtype=int)
+    
+    start = (size_full - size_cube) // 2
+    end = start + size_cube
+    mid = (start + end) // 2
+
+    for x in range(size_full):
+        for y in range(size_full):
+            for z in range(size_full):
+                if start <= x < end and start <= y < end and start <= z < end:
+                    if x < mid:
+                        voxels[x, y, z] = value1
+                    else:
+                        voxels[x, y, z] = value2
+                    
+    return voxels
+
 if __name__ == "__main__":
     sphere = generate_sphere(3)
     diamond = generate_diamond(5)
     sphere_2_color = generate_sphere_2_color(3, 1, 2)
+    cube = generate_cube(5, 1)
+    cube_2_color = generate_cube_2_color(10, 5, 1, 2)
     
     show_shape(sphere)
     show_shape(diamond)
     show_shape(sphere_2_color)
+    show_shape(cube)
+    show_shape(cube_2_color)
     
     save_shape(sphere, 'sphere.npy')
     save_shape(diamond, 'diamond.npy')
     save_shape(sphere_2_color, 'sphere_2_color.npy')
+    save_shape(cube, 'cube.npy')
+    save_shape(cube_2_color, 'cube_2_color.npy')
