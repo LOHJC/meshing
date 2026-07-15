@@ -2,6 +2,7 @@
 import numpy as np
 import pyvista as pv
 import matplotlib.pyplot as plt
+import argparse
 from generate_voxels import show_shape
 
 def load_voxel(filename):
@@ -49,8 +50,12 @@ def greedy_mesh(voxel_data):
     def greedy_sweep(axis):
         # Sweep planes perpendicular to one axis and greedily merge exposed faces.
         dims = (width, height, depth)
-        u = (axis + 1) % 3
-        v = (axis + 2) % 3
+        
+        # sometimes it better to swap u <-> v for better meshing
+        # u = (axis + 1) % 3
+        # v = (axis + 2) % 3
+        v = (axis + 1) % 3
+        u = (axis + 2) % 3
 
         for d in range(dims[axis] + 1):
             # mask: +1/-1 encodes face orientation, 0 means no visible face.
@@ -72,7 +77,7 @@ def greedy_mesh(voxel_data):
 
                     if d < dims[axis]:
                         right = [0, 0, 0]
-                        right[axis] = d
+                        right[axis] = d 
                         right[u] = i
                         right[v] = j
                         right_filled = occupied[right[0], right[1], right[2]]
@@ -83,14 +88,6 @@ def greedy_mesh(voxel_data):
                     elif right_filled and not left_filled:
                         mask[i, j] = -1
                         values[i, j] = voxel_data[right[0], right[1], right[2]]
-            
-            # show the slice for debugging
-            fig, axes = plt.subplots(1, 2, figsize=(12, 5))
-            axes[0].imshow(mask)
-            axes[0].set_title(f"Mask for axis {axis} at depth {d}")
-            axes[1].imshow(values)
-            axes[1].set_title(f"Values for axis {axis} at depth {d}")
-            plt.show()
 
             # Greedy rectangle merge on each 2D mask slice.
             visited = np.zeros_like(mask, dtype=bool)
@@ -126,10 +123,10 @@ def greedy_mesh(voxel_data):
                         if can_grow:
                             rect_h += 1
 
-                            # Mark consumed cells so each visible face is emitted once.
+                    # Mark consumed cells so each visible face is emitted once.
                     visited[i:i + rect_w, j:j + rect_h] = True
 
-                            # Convert merged rectangle back into 3D quad corners.
+                    # Convert merged rectangle back into 3D quad corners.
                     base = np.array([0, 0, 0], dtype=int)
                     base[axis] = d
                     base[u] = i
@@ -150,11 +147,6 @@ def greedy_mesh(voxel_data):
                         add_quad(c0, c1, c2, c3, value)
                     else:
                         add_quad(c0, c3, c2, c1, value)
-            
-            # show the vertices and faces for debugging
-            print(f"Axis {axis}, depth {d}:")
-            print(f"Vertices: {vertices}")
-            print(f"Faces: {faces}")
 
     # Sweep depth-facing planes first, then complete other orientations.
     greedy_sweep(axis=2)
@@ -175,15 +167,18 @@ def marching_cubes(voxel_data):
     pass
 
 if __name__ == "__main__":
-    sphere = load_voxel("sphere_2_color.npy")
-    show_shape(sphere)
+    parser = argparse.ArgumentParser(description="Convert voxels to mesh")
+    parser.add_argument("--shape", type=str, choices=["sphere", "cube"], default="sphere",
+                        help="Shape to process: sphere or cube")
+    args = parser.parse_args()
     
-    mesh = greedy_mesh(sphere)
+    if args.shape == "sphere":
+        shape = load_voxel("sphere_2_color.npy")
+        
+    elif args.shape == "cube":
+        shape= load_voxel("cube_2_color.npy")
+        
+    show_shape(shape)
+    mesh = greedy_mesh(shape)
     show_mesh(mesh)
-    
-    # diamond = load_voxel("diamond.npy")
-    # show_shape(diamond)
-    
-    # mesh = greedy_mesh(diamond)
-    # show_mesh(mesh)
     
