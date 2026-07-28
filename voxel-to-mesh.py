@@ -161,7 +161,7 @@ def greedy_mesh(voxel_data):
     mesh.cell_data["voxel_value"] = np.array(face_values)
     return mesh
 
-def marching_cubes(voxel_data):
+def marching_cubes(voxel_data, iso_value=0.5, spacing=(1.0, 1.0, 1.0)):
     # Placeholder for the marching cubes algorithm
     # This function would convert voxel data to a mesh representation
     pass
