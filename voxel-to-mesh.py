@@ -1,12 +1,13 @@
-
 import numpy as np
 import pyvista as pv
 import matplotlib.pyplot as plt
 import argparse
 from generate_voxels import show_shape
 
+
 def load_voxel(filename):
     return np.load(filename)
+
 
 def show_mesh(mesh):
     # Visualize per-face voxel labels when available.
@@ -16,6 +17,7 @@ def show_mesh(mesh):
     else:
         plotter.add_mesh(mesh, show_edges=True)
     plotter.show()
+
 
 def greedy_mesh(voxel_data):
     # Grid dimensions are in (x, y, z) order.
@@ -50,7 +52,7 @@ def greedy_mesh(voxel_data):
     def greedy_sweep(axis):
         # Sweep planes perpendicular to one axis and greedily merge exposed faces.
         dims = (width, height, depth)
-        
+
         # sometimes it better to swap u <-> v for better meshing
         # u = (axis + 1) % 3
         # v = (axis + 2) % 3
@@ -77,7 +79,7 @@ def greedy_mesh(voxel_data):
 
                     if d < dims[axis]:
                         right = [0, 0, 0]
-                        right[axis] = d 
+                        right[axis] = d
                         right[u] = i
                         right[v] = j
                         right_filled = occupied[right[0], right[1], right[2]]
@@ -124,7 +126,7 @@ def greedy_mesh(voxel_data):
                             rect_h += 1
 
                     # Mark consumed cells so each visible face is emitted once.
-                    visited[i:i + rect_w, j:j + rect_h] = True
+                    visited[i : i + rect_w, j : j + rect_h] = True
 
                     # Convert merged rectangle back into 3D quad corners.
                     base = np.array([0, 0, 0], dtype=int)
@@ -161,34 +163,42 @@ def greedy_mesh(voxel_data):
     mesh.cell_data["voxel_value"] = np.array(face_values)
     return mesh
 
+
 def marching_cubes(voxel_data, iso_value=0.5, spacing=(1.0, 1.0, 1.0)):
     # Placeholder for the marching cubes algorithm
     # This function would convert voxel data to a mesh representation
     pass
+
 
 def surface_nets(voxel_data):
     # Placeholder for the surface nets algorithm
     # This function would convert voxel data to a mesh representation
     pass
 
+
 def dual_contouring(voxel_data):
     # Placeholder for the dual contouring algorithm
     # This function would convert voxel data to a mesh representation
     pass
 
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Convert voxels to mesh")
-    parser.add_argument("--shape", type=str, choices=["sphere", "cube"], default="sphere",
-                        help="Shape to process: sphere or cube")
+    parser.add_argument(
+        "--shape",
+        type=str,
+        choices=["sphere", "cube"],
+        default="sphere",
+        help="Shape to process: sphere or cube",
+    )
     args = parser.parse_args()
-    
+
     if args.shape == "sphere":
         shape = load_voxel("sphere_2_color.npy")
-        
+
     elif args.shape == "cube":
-        shape= load_voxel("cube_2_color.npy")
-        
+        shape = load_voxel("cube_2_color.npy")
+
     show_shape(shape)
     mesh = greedy_mesh(shape)
     show_mesh(mesh)
-    
