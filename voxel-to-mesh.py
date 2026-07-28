@@ -3,6 +3,7 @@ import pyvista as pv
 import matplotlib.pyplot as plt
 import argparse
 from generate_voxels import show_shape
+from skimage.measure import marching_cubes as mc
 
 
 def load_voxel(filename):
@@ -165,9 +166,20 @@ def greedy_mesh(voxel_data):
 
 
 def marching_cubes(voxel_data, iso_value=0.5, spacing=(1.0, 1.0, 1.0)):
-    # Placeholder for the marching cubes algorithm
-    # This function would convert voxel data to a mesh representation
-    pass
+    vertices, faces, normals, values = mc(voxel_data, level=iso_value, spacing=spacing)
+
+    # Handle empty extraction fields gracefully to prevent engine layout crashes
+    if len(vertices) == 0:
+        return pv.PolyData()
+
+    # 2. Add structural padding (the number 3) for each triangle row
+    # This transforms [[v0, v1, v2]] into [[3, v0, v1, v2]]
+    padding = np.full((faces.shape[0], 1), 3, dtype=np.int32)
+    pv_faces = np.hstack((padding, faces)).flatten()  # Flatten completely into 1D
+
+    # 3. Build and return the clean PyVista PolyData object
+    mesh = pv.PolyData(vertices, pv_faces)
+    return mesh
 
 
 def surface_nets(voxel_data):
@@ -200,5 +212,6 @@ if __name__ == "__main__":
         shape = load_voxel("cube_2_color.npy")
 
     show_shape(shape)
-    mesh = greedy_mesh(shape)
+    # mesh = greedy_mesh(shape)
+    mesh = marching_cubes(shape)
     show_mesh(mesh)
