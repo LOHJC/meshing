@@ -3,7 +3,7 @@ import pyvista as pv
 import matplotlib.pyplot as plt
 import argparse
 from generate_voxels import show_shape
-from skimage.measure import marching_cubes as mc
+from marching_cube_utils import *
 
 
 def load_voxel(filename):
@@ -168,20 +168,121 @@ def greedy_mesh(voxel_data):
     return mesh
 
 
-def marching_cubes(voxel_data, iso_value=0.5, spacing=(1.0, 1.0, 1.0)):
-    vertices, faces, normals, values = mc(voxel_data, level=iso_value, spacing=spacing)
+# https://gist.github.com/dwilliamson/c041e3454a713e58baf6e4f8e5fffecd
+# refer to marching_cube_utils.py
+def marching_cube(voxel_data, iso_value=0.5):
+    # voxel_data axes are:
+    #
+    #      z
+    #      |     y
+    #      |   /
+    #      | /
+    #      +----- x
+    #
+    # Axes are:
+    #
+    #      y
+    #      |     z
+    #      |   /
+    #      | /
+    #      +----- x
+    #
+    # Vertex and edge layout:
+    #
+    #            6             7
+    #            +-------------+               +-----6-------+
+    #          / |           / |             / |            /|
+    #        /   |         /   |          11   7         10   5
+    #    2 +-----+-------+  3  |         +-----+2------+     |
+    #      |   4 +-------+-----+ 5       |     +-----4-+-----+
+    #      |   /         |   /           3   8         1   9
+    #      | /           | /             | /           | /
+    #    0 +-------------+ 1             +------0------+
+    #
+    # Triangulation cases are generated prioritising rotations over inversions, which can introduce non-manifold geometry.
+    #
+    vertex_map = {}
+    vertices = []
+    faces = []
+    face_values = []  # for coloring
 
-    # Handle empty extraction fields gracefully to prevent engine layout crashes
-    if len(vertices) == 0:
-        return pv.PolyData()
+    width, height, depth = voxel_data.shape
+    cube_x, cube_y, cube_z = width - 1, height - 1, depth - 1
+    for i in range(cube_x):
+        for j in range(cube_y):
+            for k in range(cube_z):
+                # get the corner X positions for the current cube
+                corners_pos = np.array(
+                    [
+                        [i, j, k],  # bottom left front
+                        [i + 1, j, k],  # bottom right front
+                        [i, j, k + 1],  # top left front
+                        [i + 1, j, k + 1],  # top right front
+                        [i, j + 1, k],  # bottom left back
+                        [i + 1, j + 1, k],  # bottom right back
+                        [i, j + 1, k + 1],  # top left back
+                        [i + 1, j + 1, k + 1],  # top right back
+                    ]
+                )
 
-    # 2. Add structural padding (the number 3) for each triangle row
-    # This transforms [[v0, v1, v2]] into [[3, v0, v1, v2]]
-    padding = np.full((faces.shape[0], 1), 3, dtype=np.int32)
-    pv_faces = np.hstack((padding, faces)).flatten()  # Flatten completely into 1D
+                # check if corner X is hit
+                corners_hit = []
+                for corner_pos in corners_pos:
+                    x, y, z = corner_pos
+                    corners_hit.append(voxel_data[x, y, z] > iso_value)
 
-    # 3. Build and return the clean PyVista PolyData object
-    mesh = pv.PolyData(vertices, pv_faces)
+                # based on the corner hits, determine the case index for the marching cubes algorithm
+                case_index = (
+                    (1 if corners_hit[0] else 0)
+                    | (2 if corners_hit[1] else 0)
+                    | (4 if corners_hit[2] else 0)
+                    | (8 if corners_hit[3] else 0)
+                    | (16 if corners_hit[4] else 0)
+                    | (32 if corners_hit[5] else 0)
+                    | (64 if corners_hit[6] else 0)
+                    | (128 if corners_hit[7] else 0)
+                )
+                triangles = TriangleTable[case_index]
+                for t in range(0, len(triangles), 3):
+                    if triangles[t] == -1:
+                        break
+                    face = [3]  # Face with 3 vertices (triangle)
+                    edge_pts = []
+                    for _t in range(t, t + 3):
+                        edge_pts.append(EdgeVertexIndices[triangles[_t]])
+                    for edge in edge_pts:
+                        # Compute the vertex position for this edge
+                        v0_idx, v1_idx = edge
+                        v0 = corners_pos[v0_idx]
+                        v1 = corners_pos[v1_idx]
+                        vertex_pos = (v0 + v1) / 2.0  # Midpoint for simplicity
+
+                        # Add vertex to the mesh
+                        vertex_key = tuple(vertex_pos)
+                        if vertex_key not in vertex_map:
+                            vertex_map[vertex_key] = len(vertices)
+                            vertices.append(vertex_pos)
+
+                        # Add vertex index to face
+                        face_idx = vertex_map[vertex_key]
+                        face.append(face_idx)
+
+                    faces.append(face)
+
+                    # choose the max voxel value from the corners of the cube for coloring
+                    color = 0
+                    for corner_hit in corners_hit:
+                        if corner_hit:
+                            color = max(
+                                color,
+                                voxel_data[
+                                    tuple(corners_pos[corners_hit.index(corner_hit)])
+                                ],
+                            )
+                    face_values.append(color)
+
+    mesh = pv.PolyData(np.array(vertices, dtype=float), np.array(faces, dtype=np.int64))
+    mesh.cell_data["voxel_value"] = np.array(face_values)
     return mesh
 
 
@@ -216,5 +317,5 @@ if __name__ == "__main__":
 
     show_shape(shape)
     # mesh = greedy_mesh(shape)
-    mesh = marching_cubes(shape)
+    mesh = marching_cube(shape)
     show_mesh(mesh)
