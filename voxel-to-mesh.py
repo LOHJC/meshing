@@ -17,6 +17,9 @@ def show_mesh(mesh):
         plotter.add_mesh(mesh, scalars="voxel_value", show_edges=True, cmap="tab20")
     else:
         plotter.add_mesh(mesh, show_edges=True)
+    plotter.show_axes()
+    plotter.camera.azimuth = -100
+    plotter.camera.elevation = -25
     plotter.show()
 
 
