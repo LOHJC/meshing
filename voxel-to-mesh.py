@@ -478,7 +478,7 @@ if __name__ == "__main__":
     elif args.shape == "cube":
         shape = load_voxel("cube_2_color.npy")
 
-    # show_shape(shape)
+    show_shape(shape)
     # mesh = greedy_mesh(shape)
     # mesh = marching_cube(shape)
     mesh = surface_nets(shape)
