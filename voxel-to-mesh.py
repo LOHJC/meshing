@@ -400,6 +400,10 @@ def surface_nets(voxel_data, iso_value=0.5):
                             else:
                                 faces.append([4, c3, c2, c1, c0])
 
+                            face_values.append(
+                                max(voxel_data[i, j, k], voxel_data[i + 1, j, k])
+                            )
+
                 # Check Y-Axis edge crossing: (i, j, k) -> (i, j + 1, k)
                 if i < width and j < height - 1 and k < depth:
                     val_current = voxel_data[i, j, k] > iso_value
@@ -416,6 +420,10 @@ def surface_nets(voxel_data, iso_value=0.5):
                                 faces.append([4, c3, c2, c1, c0])
                             else:
                                 faces.append([4, c0, c1, c2, c3])
+
+                            face_values.append(
+                                max(voxel_data[i, j, k], voxel_data[i, j + 1, k])
+                            )
 
                 # Check Z-Axis edge crossing: (i, j, k) -> (i, j, k + 1)
                 if i < width and j < height and k < depth - 1:
@@ -434,10 +442,13 @@ def surface_nets(voxel_data, iso_value=0.5):
                             else:
                                 faces.append([4, c3, c2, c1, c0])
 
+                            face_values.append(
+                                max(voxel_data[i, j, k], voxel_data[i, j, k + 1])
+                            )
+
     print(f"Vertices: {len(vertices)}, Faces: {len(faces)}")
-    # mesh = pv.PolyData(np.array(vertices, dtype=float))
     mesh = pv.PolyData(np.array(vertices, dtype=float), np.array(faces, dtype=np.int64))
-    # mesh.cell_data["voxel_value"] = np.array(face_values)
+    mesh.cell_data["voxel_value"] = np.array(face_values)
     return mesh
 
 
