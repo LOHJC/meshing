@@ -396,9 +396,9 @@ def surface_nets(voxel_data, iso_value=0.5):
 
                         if all(c is not None for c in [c0, c1, c2, c3]):
                             if val_current:
-                                faces.extend([4, c0, c1, c2, c3])
+                                faces.append([4, c0, c1, c2, c3])
                             else:
-                                faces.extend([4, c3, c2, c1, c0])
+                                faces.append([4, c3, c2, c1, c0])
 
                 # Check Y-Axis edge crossing: (i, j, k) -> (i, j + 1, k)
                 if i < width and j < height - 1 and k < depth:
@@ -413,9 +413,9 @@ def surface_nets(voxel_data, iso_value=0.5):
 
                         if all(c is not None for c in [c0, c1, c2, c3]):
                             if val_current:
-                                faces.extend([4, c3, c2, c1, c0])
+                                faces.append([4, c3, c2, c1, c0])
                             else:
-                                faces.extend([4, c0, c1, c2, c3])
+                                faces.append([4, c0, c1, c2, c3])
 
                 # Check Z-Axis edge crossing: (i, j, k) -> (i, j, k + 1)
                 if i < width and j < height and k < depth - 1:
@@ -430,11 +430,10 @@ def surface_nets(voxel_data, iso_value=0.5):
 
                         if all(c is not None for c in [c0, c1, c2, c3]):
                             if val_current:
-                                faces.extend([4, c0, c1, c2, c3])
+                                faces.append([4, c0, c1, c2, c3])
                             else:
-                                faces.extend([4, c3, c2, c1, c0])
+                                faces.append([4, c3, c2, c1, c0])
 
-    # print(faces)
     print(f"Vertices: {len(vertices)}, Faces: {len(faces)}")
     # mesh = pv.PolyData(np.array(vertices, dtype=float))
     mesh = pv.PolyData(np.array(vertices, dtype=float), np.array(faces, dtype=np.int64))
