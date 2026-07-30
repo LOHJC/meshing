@@ -386,8 +386,70 @@ def surface_nets(voxel_data, iso_value=0.5):
                 if (i, j, k) not in cube_vertex_idx:
                     continue
 
+                # current vertex idx inside the cube
+                v0 = cube_vertex_idx.get((i, j, k))
+
+                # each edge should hitting max 4 cubes (the current cube and its 3 neighbors)
+                # edges_cubes = {
+                #     # front face
+                #     0: [(i, j, k - 1), (i, j - 1, k), (i, j - 1, k - 1)],
+                #     1: [(i + 1, j, k), (i, j - 1, k), (i + 1, j - 1, k)],
+                #     2: [(i, j, k + 1), (i, j - 1, k), (i, j - 1, k + 1)],
+                #     3: [(i - 1, j, k), (i, j - 1, k), (i - 1, j - 1, k)],
+                #     # back face
+                #     4: [(i, j, k - 1), (i, j + 1, k), (i, j + 1, k - 1)],
+                #     5: [(i + 1, j, k), (i, j + 1, k), (i + 1, j + 1, k)],
+                #     6: [(i, j, k + 1), (i, j + 1, k), (i, j + 1, k + 1)],
+                #     7: [(i - 1, j, k), (i, j + 1, k), (i - 1, j + 1, k)],
+                #     # partial bottom face
+                #     8: [(i - 1, j, k), (i, j, k - 1), (i - 1, j, k - 1)],
+                #     9: [(i + 1, j, k), (i, j, k - 1), (i + 1, j, k - 1)],
+                #     # partial top face
+                #     10: [(i + 1, j, k), (i, j, k + 1), (i + 1, j, k + 1)],
+                #     11: [(i - 1, j, k), (i, j, k + 1), (i - 1, j, k + 1)],
+                # }
+                # the arrangement should be change in k, j, i
+                edges_cubes = {
+                    # front face
+                    0: [(i, j, k - 1), (i, j - 1, k - 1), (i, j - 1, k)],
+                    1: [(i, j - 1, k), (i + 1, j - 1, k), (i + 1, j, k)],
+                    2: [(i, j, k + 1), (i, j - 1, k + 1), (i, j - 1, k)],
+                    3: [(i, j - 1, k), (i - 1, j - 1, k), (i - 1, j, k)],
+                    # back face
+                    4: [(i, j, k - 1), (i, j + 1, k - 1), (i, j + 1, k)],
+                    5: [(i, j + 1, k), (i + 1, j + 1, k), (i + 1, j, k)],
+                    6: [(i, j, k + 1), (i, j + 1, k + 1), (i, j + 1, k)],
+                    7: [(i, j + 1, k), (i - 1, j + 1, k), (i - 1, j, k)],
+                    # partial bottom face
+                    8: [(i, j, k - 1), (i - 1, j, k - 1), (i - 1, j, k)],
+                    9: [(i, j, k - 1), (i + 1, j, k - 1), (i + 1, j, k)],
+                    # partial top face
+                    10: [(i, j, k + 1), (i + 1, j, k + 1), (i + 1, j, k)],
+                    11: [(i, j, k + 1), (i - 1, j, k + 1), (i - 1, j, k)],
+                }
+                # check all the 12 edges of the current cube to form faces
+                for edge_idx in range(len(EdgeVertexIndices)):
+                    connected_vertices = []
+                    current_edge_cubes_idx = edges_cubes[edge_idx]
+                    for neighbor_cube_idx in current_edge_cubes_idx:
+                        if neighbor_cube_idx in cube_vertex_idx:
+                            connected_vertices.append(
+                                cube_vertex_idx[neighbor_cube_idx]
+                            )
+                    if len(connected_vertices) == 3:
+                        face = [3, v0] + connected_vertices[:2]
+                        faces.append(face)
+                        face = [3, v0] + connected_vertices[1:]
+                        faces.append(face)
+
+                    if len(connected_vertices) == 2:
+                        face = [3, v0] + connected_vertices
+                        faces.append(face)
+
+    # print(faces)
     print(f"Vertices: {len(vertices)}, Faces: {len(faces)}")
     mesh = pv.PolyData(np.array(vertices, dtype=float))
+    # mesh = pv.PolyData(np.array(vertices, dtype=float), np.array(faces, dtype=np.int64))
     # mesh.cell_data["voxel_value"] = np.array(face_values)
     return mesh
 
@@ -418,7 +480,7 @@ if __name__ == "__main__":
     elif args.shape == "cube":
         shape = load_voxel("cube_2_color.npy")
 
-    show_shape(shape)
+    # show_shape(shape)
     # mesh = greedy_mesh(shape)
     # mesh = marching_cube(shape)
     mesh = surface_nets(shape)
