@@ -362,7 +362,7 @@ def surface_nets(voxel_data, iso_value=0.5):
                     v0_idx, v1_idx = edges
                     v0 = corners_pos[v0_idx]
                     v1 = corners_pos[v1_idx]
-                    if corners_hit[v0_idx] and corners_hit[v1_idx]:
+                    if corners_hit[v0_idx] != corners_hit[v1_idx]:
                         intersection_points.append((v0 + v1) / 2.0)
 
                 vertex_pos = (
