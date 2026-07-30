@@ -380,76 +380,64 @@ def surface_nets(voxel_data, iso_value=0.5):
 
     # face generation
     # TOFIX:
-    for i in range(cube_x):
-        for j in range(cube_y):
-            for k in range(cube_z):
-                if (i, j, k) not in cube_vertex_idx:
-                    continue
+    for i in range(width):
+        for j in range(height):
+            for k in range(depth):
+                # Check X-Axis edge crossing: (i, j, k) -> (i + 1, j, k)
+                if i < width - 1 and j < height and k < depth:
+                    val_current = voxel_data[i, j, k] > iso_value
+                    val_next = voxel_data[i + 1, j, k] > iso_value
+                    if val_current != val_next:
+                        # Fetch indices of the 4 dual cells surrounding this edge
+                        c0 = cube_vertex_idx.get((i, j, k))
+                        c1 = cube_vertex_idx.get((i, j, k - 1))
+                        c2 = cube_vertex_idx.get((i, j - 1, k - 1))
+                        c3 = cube_vertex_idx.get((i, j - 1, k))
 
-                # current vertex idx inside the cube
-                v0 = cube_vertex_idx.get((i, j, k))
+                        if all(c is not None for c in [c0, c1, c2, c3]):
+                            if val_current:
+                                faces.extend([4, c0, c1, c2, c3])
+                            else:
+                                faces.extend([4, c3, c2, c1, c0])
 
-                # each edge should hitting max 4 cubes (the current cube and its 3 neighbors)
-                # edges_cubes = {
-                #     # front face
-                #     0: [(i, j, k - 1), (i, j - 1, k), (i, j - 1, k - 1)],
-                #     1: [(i + 1, j, k), (i, j - 1, k), (i + 1, j - 1, k)],
-                #     2: [(i, j, k + 1), (i, j - 1, k), (i, j - 1, k + 1)],
-                #     3: [(i - 1, j, k), (i, j - 1, k), (i - 1, j - 1, k)],
-                #     # back face
-                #     4: [(i, j, k - 1), (i, j + 1, k), (i, j + 1, k - 1)],
-                #     5: [(i + 1, j, k), (i, j + 1, k), (i + 1, j + 1, k)],
-                #     6: [(i, j, k + 1), (i, j + 1, k), (i, j + 1, k + 1)],
-                #     7: [(i - 1, j, k), (i, j + 1, k), (i - 1, j + 1, k)],
-                #     # partial bottom face
-                #     8: [(i - 1, j, k), (i, j, k - 1), (i - 1, j, k - 1)],
-                #     9: [(i + 1, j, k), (i, j, k - 1), (i + 1, j, k - 1)],
-                #     # partial top face
-                #     10: [(i + 1, j, k), (i, j, k + 1), (i + 1, j, k + 1)],
-                #     11: [(i - 1, j, k), (i, j, k + 1), (i - 1, j, k + 1)],
-                # }
-                # the arrangement should be change in k, j, i
-                edges_cubes = {
-                    # front face
-                    0: [(i, j, k - 1), (i, j - 1, k - 1), (i, j - 1, k)],
-                    1: [(i, j - 1, k), (i + 1, j - 1, k), (i + 1, j, k)],
-                    2: [(i, j, k + 1), (i, j - 1, k + 1), (i, j - 1, k)],
-                    3: [(i, j - 1, k), (i - 1, j - 1, k), (i - 1, j, k)],
-                    # back face
-                    4: [(i, j, k - 1), (i, j + 1, k - 1), (i, j + 1, k)],
-                    5: [(i, j + 1, k), (i + 1, j + 1, k), (i + 1, j, k)],
-                    6: [(i, j, k + 1), (i, j + 1, k + 1), (i, j + 1, k)],
-                    7: [(i, j + 1, k), (i - 1, j + 1, k), (i - 1, j, k)],
-                    # partial bottom face
-                    8: [(i, j, k - 1), (i - 1, j, k - 1), (i - 1, j, k)],
-                    9: [(i, j, k - 1), (i + 1, j, k - 1), (i + 1, j, k)],
-                    # partial top face
-                    10: [(i, j, k + 1), (i + 1, j, k + 1), (i + 1, j, k)],
-                    11: [(i, j, k + 1), (i - 1, j, k + 1), (i - 1, j, k)],
-                }
-                # check all the 12 edges of the current cube to form faces
-                for edge_idx in range(len(EdgeVertexIndices)):
-                    connected_vertices = []
-                    current_edge_cubes_idx = edges_cubes[edge_idx]
-                    for neighbor_cube_idx in current_edge_cubes_idx:
-                        if neighbor_cube_idx in cube_vertex_idx:
-                            connected_vertices.append(
-                                cube_vertex_idx[neighbor_cube_idx]
-                            )
-                    if len(connected_vertices) == 3:
-                        face = [3, v0] + connected_vertices[:2]
-                        faces.append(face)
-                        face = [3, v0] + connected_vertices[1:]
-                        faces.append(face)
+                # Check Y-Axis edge crossing: (i, j, k) -> (i, j + 1, k)
+                if i < width and j < height - 1 and k < depth:
+                    val_current = voxel_data[i, j, k] > iso_value
+                    val_next = voxel_data[i, j + 1, k] > iso_value
+                    if val_current != val_next:
+                        # Fetch indices of the 4 dual cells surrounding this edge
+                        c0 = cube_vertex_idx.get((i, j, k))
+                        c1 = cube_vertex_idx.get((i - 1, j, k))
+                        c2 = cube_vertex_idx.get((i - 1, j, k - 1))
+                        c3 = cube_vertex_idx.get((i, j, k - 1))
 
-                    if len(connected_vertices) == 2:
-                        face = [3, v0] + connected_vertices
-                        faces.append(face)
+                        if all(c is not None for c in [c0, c1, c2, c3]):
+                            if val_current:
+                                faces.extend([4, c3, c2, c1, c0])
+                            else:
+                                faces.extend([4, c0, c1, c2, c3])
+
+                # Check Z-Axis edge crossing: (i, j, k) -> (i, j, k + 1)
+                if i < width and j < height and k < depth - 1:
+                    val_current = voxel_data[i, j, k] > iso_value
+                    val_next = voxel_data[i, j, k + 1] > iso_value
+                    if val_current != val_next:
+                        # Fetch indices of the 4 dual cells surrounding this edge
+                        c0 = cube_vertex_idx.get((i, j, k))
+                        c1 = cube_vertex_idx.get((i, j - 1, k))
+                        c2 = cube_vertex_idx.get((i - 1, j - 1, k))
+                        c3 = cube_vertex_idx.get((i - 1, j, k))
+
+                        if all(c is not None for c in [c0, c1, c2, c3]):
+                            if val_current:
+                                faces.extend([4, c0, c1, c2, c3])
+                            else:
+                                faces.extend([4, c3, c2, c1, c0])
 
     # print(faces)
     print(f"Vertices: {len(vertices)}, Faces: {len(faces)}")
-    mesh = pv.PolyData(np.array(vertices, dtype=float))
-    # mesh = pv.PolyData(np.array(vertices, dtype=float), np.array(faces, dtype=np.int64))
+    # mesh = pv.PolyData(np.array(vertices, dtype=float))
+    mesh = pv.PolyData(np.array(vertices, dtype=float), np.array(faces, dtype=np.int64))
     # mesh.cell_data["voxel_value"] = np.array(face_values)
     return mesh
 
