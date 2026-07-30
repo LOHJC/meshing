@@ -379,7 +379,6 @@ def surface_nets(voxel_data, iso_value=0.5):
                         vertices.append(vertex_pos)
 
     # face generation
-    # TOFIX:
     for i in range(width):
         for j in range(height):
             for k in range(depth):
