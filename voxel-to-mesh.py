@@ -304,15 +304,119 @@ def marching_cube(voxel_data, iso_value=0.5):
                             )
                     face_values.append(color)
 
+    print(f"Vertices: {len(vertices)}, Faces: {len(faces)}")
     mesh = pv.PolyData(np.array(vertices, dtype=float), np.array(faces, dtype=np.int64))
     mesh.cell_data["voxel_value"] = np.array(face_values)
     return mesh
 
 
-def surface_nets(voxel_data):
-    # Placeholder for the surface nets algorithm
-    # This function would convert voxel data to a mesh representation
-    pass
+def surface_nets(voxel_data, iso_value=0.5):
+    #
+    # Vertex and edge layout:
+    #
+    #            6             7
+    #            +-------------+               +-----6-------+
+    #          / |           / |             / |            /|
+    #        /   |         /   |          11   7         10   5
+    #    2 +-----+-------+  3  |         +-----+2------+     |
+    #      |   4 +-------+-----+ 5       |     +-----4-+-----+
+    #      |   /         |   /           3   8         1   9
+    #      | /           | /             | /           | /
+    #    0 +-------------+ 1             +------0------+
+    #
+    # Triangulation cases are generated prioritising rotations over inversions, which can introduce non-manifold geometry.
+    #
+    vertex_map = {}
+    vertices = []
+    faces = []
+    face_values = []  # for coloring
+    cube_vertex_idx = {}
+
+    width, height, depth = voxel_data.shape
+    cube_x, cube_y, cube_z = width - 1, height - 1, depth - 1
+    for i in range(cube_x):
+        for j in range(cube_y):
+            for k in range(cube_z):
+                # get the corner X positions for the current cube
+                corners_pos = np.array(
+                    [
+                        [i, j, k],  # bottom left front
+                        [i + 1, j, k],  # bottom right front
+                        [i, j, k + 1],  # top left front
+                        [i + 1, j, k + 1],  # top right front
+                        [i, j + 1, k],  # bottom left back
+                        [i + 1, j + 1, k],  # bottom right back
+                        [i, j + 1, k + 1],  # top left back
+                        [i + 1, j + 1, k + 1],  # top right back
+                    ]
+                )
+
+                # check if corner X is hit
+                corners_hit = []
+                for corner_pos in corners_pos:
+                    x, y, z = corner_pos
+                    corners_hit.append(voxel_data[x, y, z] > iso_value)
+
+                intersection_points = []
+                for edges in EdgeVertexIndices:
+                    v0_idx, v1_idx = edges
+                    v0 = corners_pos[v0_idx]
+                    v1 = corners_pos[v1_idx]
+                    if corners_hit[v0_idx] and corners_hit[v1_idx]:
+                        intersection_points.append((v0 + v1) / 2.0)
+
+                vertex_pos = (
+                    np.mean(intersection_points, axis=0).astype(int)
+                    if intersection_points
+                    else None
+                )
+                if vertex_pos is not None:
+                    # Add vertex to the mesh
+                    vertex_key = tuple(vertex_pos)
+                    if vertex_key not in vertex_map:
+                        vertex_map[vertex_key] = len(vertices)
+                        cube_vertex_idx[(i, j, k)] = len(vertices)
+                        vertices.append(vertex_pos)
+
+    # face generation
+    # TOFIX:
+    for i in range(cube_x):
+        for j in range(cube_y):
+            for k in range(cube_z):
+                if (i, j, k) not in cube_vertex_idx:
+                    continue
+
+                connected_vertices = []
+                for di, dj, dk in [(1, 0, 0), (0, 1, 0), (0, 0, 1)]:
+                    neighbor = (i + di, j + dj, k + dk)
+                    if neighbor in cube_vertex_idx:
+                        connected_vertices.append(cube_vertex_idx[neighbor])
+                # print(
+                #     f"Connected vertices for cube ({i}, {j}, {k}) vertice {cube_vertex_idx[(i, j, k)]}: {connected_vertices}"
+                # )
+
+                if len(connected_vertices) == 2:
+                    face = [3]
+                    face.extend([cube_vertex_idx[(i, j, k)]])
+                    face.extend(connected_vertices)
+                    faces.append(face)
+
+                if len(connected_vertices) == 3:
+                    center_idx = cube_vertex_idx[(i, j, k)]
+                    face1 = [3]
+                    face1.append(center_idx)
+                    face1.extend(connected_vertices[:2])  # Adds v0 and v1
+                    faces.append(face1)
+
+                    face2 = [3]
+                    face2.append(center_idx)
+                    face2.extend(connected_vertices[1:])  # Adds v1 and v2
+                    faces.append(face2)
+
+    print(f"Vertices: {len(vertices)}, Faces: {len(faces)}")
+    mesh = pv.PolyData(np.array(vertices, dtype=float), np.array(faces, dtype=np.int64))
+    # mesh.cell_data["voxel_value"] = np.array(face_values)
+    return mesh
 
 
 def dual_contouring(voxel_data):
@@ -343,5 +447,6 @@ if __name__ == "__main__":
 
     show_shape(shape)
     # mesh = greedy_mesh(shape)
-    mesh = marching_cube(shape)
+    # mesh = marching_cube(shape)
+    mesh = surface_nets(shape)
     show_mesh(mesh)
