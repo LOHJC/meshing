@@ -10,6 +10,29 @@ def load_voxel(filename):
     return np.load(filename)
 
 
+def generate_terrain_voxel(
+    size=(15, 15, 15),
+    padding=(1, 1, 1),
+    max_height=10,
+    min_height=1,
+    max_value=2,
+    base_area=(2, 2),
+):
+    terrain = np.zeros(size, dtype=np.int8)
+    for x in range(padding[0], size[0] - padding[0], base_area[0]):
+        for y in range(padding[1], size[1] - padding[1], base_area[1]):
+            height = np.random.randint(min_height, max_height + 1)
+            material = np.random.randint(1, max_value + 1)
+
+            # Prevent slicing outside the padding boundaries
+            x_end = min(x + base_area[0], size[0] - padding[0])
+            y_end = min(y + base_area[1], size[1] - padding[1])
+
+            # Fill the entire 2x2 columns up to the chosen height
+            terrain[x:x_end, y:y_end, :height] = material
+    return terrain
+
+
 def show_mesh(mesh):
     # Visualize per-face voxel labels when available.
     plotter = pv.Plotter()
@@ -303,13 +326,16 @@ if __name__ == "__main__":
     parser.add_argument(
         "--shape",
         type=str,
-        choices=["sphere", "cube"],
-        default="sphere",
-        help="Shape to process: sphere or cube",
+        choices=["random", "sphere", "cube"],
+        default="random",
+        help="Shape to process: random, sphere, or cube",
     )
     args = parser.parse_args()
 
-    if args.shape == "sphere":
+    if args.shape == "random":
+        shape = generate_terrain_voxel()
+
+    elif args.shape == "sphere":
         shape = load_voxel("sphere_2_color.npy")
 
     elif args.shape == "cube":
