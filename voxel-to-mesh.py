@@ -386,35 +386,8 @@ def surface_nets(voxel_data, iso_value=0.5):
                 if (i, j, k) not in cube_vertex_idx:
                     continue
 
-                connected_vertices = []
-                for di, dj, dk in [(1, 0, 0), (0, 1, 0), (0, 0, 1)]:
-                    neighbor = (i + di, j + dj, k + dk)
-                    if neighbor in cube_vertex_idx:
-                        connected_vertices.append(cube_vertex_idx[neighbor])
-                # print(
-                #     f"Connected vertices for cube ({i}, {j}, {k}) vertice {cube_vertex_idx[(i, j, k)]}: {connected_vertices}"
-                # )
-
-                if len(connected_vertices) == 2:
-                    face = [3]
-                    face.extend([cube_vertex_idx[(i, j, k)]])
-                    face.extend(connected_vertices)
-                    faces.append(face)
-
-                if len(connected_vertices) == 3:
-                    center_idx = cube_vertex_idx[(i, j, k)]
-                    face1 = [3]
-                    face1.append(center_idx)
-                    face1.extend(connected_vertices[:2])  # Adds v0 and v1
-                    faces.append(face1)
-
-                    face2 = [3]
-                    face2.append(center_idx)
-                    face2.extend(connected_vertices[1:])  # Adds v1 and v2
-                    faces.append(face2)
-
     print(f"Vertices: {len(vertices)}, Faces: {len(faces)}")
-    mesh = pv.PolyData(np.array(vertices, dtype=float), np.array(faces, dtype=np.int64))
+    mesh = pv.PolyData(np.array(vertices, dtype=float))
     # mesh.cell_data["voxel_value"] = np.array(face_values)
     return mesh
 
