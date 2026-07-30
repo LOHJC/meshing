@@ -366,7 +366,7 @@ def surface_nets(voxel_data, iso_value=0.5):
                         intersection_points.append((v0 + v1) / 2.0)
 
                 vertex_pos = (
-                    np.mean(intersection_points, axis=0).astype(int)
+                    np.mean(intersection_points, axis=0)
                     if intersection_points
                     else None
                 )
