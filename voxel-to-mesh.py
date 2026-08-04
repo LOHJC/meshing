@@ -451,10 +451,194 @@ def surface_nets(voxel_data, iso_value=0.5):
     return mesh
 
 
-def dual_contouring(voxel_data):
-    # Placeholder for the dual contouring algorithm
-    # This function would convert voxel data to a mesh representation
-    pass
+def dual_contouring(voxel_data, iso_value=0.5):
+    #
+    # Vertex and edge layout:
+    #
+    #            6             7
+    #            +-------------+               +-----6-------+
+    #          / |           / |             / |            /|
+    #        /   |         /   |          11   7         10   5
+    #    2 +-----+-------+  3  |         +-----+2------+     |
+    #      |   4 +-------+-----+ 5       |     +-----4-+-----+
+    #      |   /         |   /           3   8         1   9
+    #      | /           | /             | /           | /
+    #    0 +-------------+ 1             +------0------+
+    #
+    # Triangulation cases are generated prioritising rotations over inversions, which can introduce non-manifold geometry.
+    #
+    vertex_map = {}
+    vertices = []
+    faces = []
+    face_values = []  # for coloring
+    cube_vertex_idx = {}
+
+    width, height, depth = voxel_data.shape
+    cube_x, cube_y, cube_z = width - 1, height - 1, depth - 1
+    for i in range(cube_x):
+        for j in range(cube_y):
+            for k in range(cube_z):
+                # get the corner X positions for the current cube
+                corners_pos = np.array(
+                    [
+                        [i, j, k],  # bottom left front
+                        [i + 1, j, k],  # bottom right front
+                        [i, j, k + 1],  # top left front
+                        [i + 1, j, k + 1],  # top right front
+                        [i, j + 1, k],  # bottom left back
+                        [i + 1, j + 1, k],  # bottom right back
+                        [i, j + 1, k + 1],  # top left back
+                        [i + 1, j + 1, k + 1],  # top right back
+                    ]
+                )
+
+                # check if corner X is hit
+                corners_hit = []
+                for corner_pos in corners_pos:
+                    x, y, z = corner_pos
+                    corners_hit.append(voxel_data[x, y, z] > iso_value)
+
+                intersection_points = []
+                intersection_normals = []
+                for edges in EdgeVertexIndices:
+                    v0_idx, v1_idx = edges
+                    v0 = corners_pos[v0_idx]
+                    v1 = corners_pos[v1_idx]
+                    if corners_hit[v0_idx] != corners_hit[v1_idx]:
+                        intersection_points.append((v0 + v1) / 2.0)
+                vertex_pos = None
+
+                # TODO:
+                # dual contour vertex pos calculation
+                # calculate the normals at each intersection points
+                def calc_normal(point, eps=1.0):
+                    x, y, z = map(int, point)
+                    max_x, max_y, max_z = np.array(voxel_data.shape) - 1
+                    x_pos = voxel_data[int(min(max(x + eps, 0), max_x)), y, z]
+                    x_neg = voxel_data[int(max(min(x - eps, max_x), 0)), y, z]
+                    y_pos = voxel_data[x, int(min(max(y + eps, 0), max_y)), z]
+                    y_neg = voxel_data[x, int(max(min(y - eps, max_y), 0)), z]
+                    z_pos = voxel_data[x, y, int(min(max(z + eps, 0), max_z))]
+                    z_neg = voxel_data[x, y, int(max(min(z - eps, max_z), 0))]
+                    normal = np.array(
+                        [x_pos - x_neg, y_pos - y_neg, z_pos - z_neg], dtype=float
+                    )
+                    norm = np.linalg.norm(normal)
+                    if norm == 0:
+                        return np.array([0.0, 1.0, 0.0])
+
+                    return normal / norm
+
+                if intersection_points:
+                    intersection_normals = [calc_normal(p) for p in intersection_points]
+                    if len(intersection_points) != len(intersection_normals):
+                        raise ValueError(
+                            "intersection_points and intersection_normals must have the same length"
+                        )
+
+                    cell_min = np.array([i, j, k])
+                    cell_max = np.array([i + 1, j + 1, k + 1])
+
+                    # qef_solver
+                    A = np.array(intersection_normals)
+                    P = np.array(intersection_points)
+                    b = np.sum(A * P, axis=1)
+
+                    # Use NumPy's linear least-squares solver to find the optimal vertex position x
+                    vertex_pos, residuals, rank, s = np.linalg.lstsq(A, b, rcond=None)
+
+                    # Calculate fallback mass center (this is your old Naive Surface Net position!)
+                    mass_center = np.mean(P, axis=0)
+
+                    # Safeguard check:
+                    # If rank < 3, the equations don't have a unique solution (e.g., all normals point same way).
+                    # If any coordinate of vertex_pos is outside the voxel cell, the math overshot.
+                    if (
+                        rank < 3
+                        or np.any(vertex_pos < cell_min)
+                        or np.any(vertex_pos > cell_max)
+                    ):
+                        vertex_pos = mass_center
+
+                if vertex_pos is not None:
+                    # Add vertex to the mesh
+                    vertex_key = tuple(vertex_pos)
+                    if vertex_key not in vertex_map:
+                        vertex_map[vertex_key] = len(vertices)
+                        cube_vertex_idx[(i, j, k)] = len(vertices)
+                        vertices.append(vertex_pos)
+
+    # face generation
+    for i in range(width):
+        for j in range(height):
+            for k in range(depth):
+                # Check X-Axis edge crossing: (i, j, k) -> (i + 1, j, k)
+                if i < width - 1 and j < height and k < depth:
+                    val_current = voxel_data[i, j, k] > iso_value
+                    val_next = voxel_data[i + 1, j, k] > iso_value
+                    if val_current != val_next:
+                        # Fetch indices of the 4 dual cells surrounding this edge
+                        c0 = cube_vertex_idx.get((i, j, k))
+                        c1 = cube_vertex_idx.get((i, j, k - 1))
+                        c2 = cube_vertex_idx.get((i, j - 1, k - 1))
+                        c3 = cube_vertex_idx.get((i, j - 1, k))
+
+                        if all(c is not None for c in [c0, c1, c2, c3]):
+                            if val_current:
+                                faces.append([4, c0, c1, c2, c3])
+                            else:
+                                faces.append([4, c3, c2, c1, c0])
+
+                            face_values.append(
+                                max(voxel_data[i, j, k], voxel_data[i + 1, j, k])
+                            )
+
+                # Check Y-Axis edge crossing: (i, j, k) -> (i, j + 1, k)
+                if i < width and j < height - 1 and k < depth:
+                    val_current = voxel_data[i, j, k] > iso_value
+                    val_next = voxel_data[i, j + 1, k] > iso_value
+                    if val_current != val_next:
+                        # Fetch indices of the 4 dual cells surrounding this edge
+                        c0 = cube_vertex_idx.get((i, j, k))
+                        c1 = cube_vertex_idx.get((i - 1, j, k))
+                        c2 = cube_vertex_idx.get((i - 1, j, k - 1))
+                        c3 = cube_vertex_idx.get((i, j, k - 1))
+
+                        if all(c is not None for c in [c0, c1, c2, c3]):
+                            if val_current:
+                                faces.append([4, c3, c2, c1, c0])
+                            else:
+                                faces.append([4, c0, c1, c2, c3])
+
+                            face_values.append(
+                                max(voxel_data[i, j, k], voxel_data[i, j + 1, k])
+                            )
+
+                # Check Z-Axis edge crossing: (i, j, k) -> (i, j, k + 1)
+                if i < width and j < height and k < depth - 1:
+                    val_current = voxel_data[i, j, k] > iso_value
+                    val_next = voxel_data[i, j, k + 1] > iso_value
+                    if val_current != val_next:
+                        # Fetch indices of the 4 dual cells surrounding this edge
+                        c0 = cube_vertex_idx.get((i, j, k))
+                        c1 = cube_vertex_idx.get((i, j - 1, k))
+                        c2 = cube_vertex_idx.get((i - 1, j - 1, k))
+                        c3 = cube_vertex_idx.get((i - 1, j, k))
+
+                        if all(c is not None for c in [c0, c1, c2, c3]):
+                            if val_current:
+                                faces.append([4, c0, c1, c2, c3])
+                            else:
+                                faces.append([4, c3, c2, c1, c0])
+
+                            face_values.append(
+                                max(voxel_data[i, j, k], voxel_data[i, j, k + 1])
+                            )
+
+    print(f"Vertices: {len(vertices)}, Faces: {len(faces)}")
+    mesh = pv.PolyData(np.array(vertices, dtype=float), np.array(faces, dtype=np.int64))
+    mesh.cell_data["voxel_value"] = np.array(face_values)
+    return mesh
 
 
 if __name__ == "__main__":
@@ -480,5 +664,6 @@ if __name__ == "__main__":
     show_shape(shape)
     # mesh = greedy_mesh(shape)
     # mesh = marching_cube(shape)
-    mesh = surface_nets(shape)
+    # mesh = surface_nets(shape)
+    mesh = dual_contouring(shape)
     show_mesh(mesh)
