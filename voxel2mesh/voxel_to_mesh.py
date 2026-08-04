@@ -479,6 +479,7 @@ def dual_contouring(voxel_data, iso_value=0.5):
     face_values = []  # for coloring
     cube_vertex_idx = {}
 
+    voxel_data = np.pad(voxel_data, pad_width=1, mode="constant", constant_values=0)
     width, height, depth = voxel_data.shape
     cube_x, cube_y, cube_z = width - 1, height - 1, depth - 1
     for i in range(cube_x):
@@ -514,18 +515,29 @@ def dual_contouring(voxel_data, iso_value=0.5):
                         intersection_points.append((v0 + v1) / 2.0)
                 vertex_pos = None
 
-                # TODO:
                 # dual contour vertex pos calculation
                 # calculate the normals at each intersection points
                 def calc_normal(point, eps=1.0):
                     x, y, z = map(int, point)
                     max_x, max_y, max_z = np.array(voxel_data.shape) - 1
-                    x_pos = voxel_data[int(min(max(x + eps, 0), max_x)), y, z]
-                    x_neg = voxel_data[int(max(min(x - eps, max_x), 0)), y, z]
-                    y_pos = voxel_data[x, int(min(max(y + eps, 0), max_y)), z]
-                    y_neg = voxel_data[x, int(max(min(y - eps, max_y), 0)), z]
-                    z_pos = voxel_data[x, y, int(min(max(z + eps, 0), max_z))]
-                    z_neg = voxel_data[x, y, int(max(min(z - eps, max_z), 0))]
+                    x_pos = voxel_data[int(min(max(x + eps, 0), max_x)), y, z].astype(
+                        int
+                    )
+                    x_neg = voxel_data[int(max(min(x - eps, max_x), 0)), y, z].astype(
+                        int
+                    )
+                    y_pos = voxel_data[x, int(min(max(y + eps, 0), max_y)), z].astype(
+                        int
+                    )
+                    y_neg = voxel_data[x, int(max(min(y - eps, max_y), 0)), z].astype(
+                        int
+                    )
+                    z_pos = voxel_data[x, y, int(min(max(z + eps, 0), max_z))].astype(
+                        int
+                    )
+                    z_neg = voxel_data[x, y, int(max(min(z - eps, max_z), 0))].astype(
+                        int
+                    )
                     normal = np.array(
                         [x_pos - x_neg, y_pos - y_neg, z_pos - z_neg], dtype=float
                     )
