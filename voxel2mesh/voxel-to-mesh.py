@@ -2,12 +2,6 @@ import numpy as np
 import pyvista as pv
 import argparse
 from generate_voxels import show_shape
-
-import os
-import sys
-
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
 from utils import *
 
 
