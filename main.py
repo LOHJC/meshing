@@ -44,9 +44,43 @@ def show_3d_numpy(array_3d: np.ndarray):
     plt.show()
 
 
+def compare_voxel_to_mesh_algos(voxel):
+    algorithms = [
+        ("greedy_mesh", greedy_mesh),
+        ("marching_cube", marching_cube),
+        ("surface_nets", surface_nets),
+        ("dual_contouring", dual_contouring),
+    ]
+
+    plotter = pv.Plotter(shape=(2, 2), window_size=(1600, 1200))
+    colors = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728"]
+
+    for i, (name, func) in enumerate(algorithms):
+        plotter.subplot(i // 2, i % 2)
+        try:
+            mesh = func(voxel)
+            if mesh is None:
+                raise ValueError("returned None")
+            plotter.add_mesh(
+                mesh, color=colors[i], show_edges=True, smooth_shading=True
+            )
+            plotter.add_title(name, font_size=16)
+        except Exception as exc:
+            print(f"{name} failed: {exc}")
+            plotter.add_text(f"{name}\nfailed", position="upper_left", font_size=14)
+
+        plotter.camera_position = "iso"
+        plotter.view_isometric()
+
+        plotter.show_axes()
+        plotter.view_yz()
+        plotter.camera.azimuth = 0
+        plotter.camera.elevation = 55
+        plotter.camera.roll = 0
+    plotter.show()
+
+
 if __name__ == "__main__":
     voxel = np.load("imgs/faucet.npy")
     print(f"Voxel grid shape: {voxel.shape}")
-    # show_shape(voxel)
-    mesh = marching_cube(voxel)
-    show_mesh(mesh)
+    compare_voxel_to_mesh_algos(voxel)
