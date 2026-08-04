@@ -1,9 +1,14 @@
 import numpy as np
 import pyvista as pv
-import matplotlib.pyplot as plt
 import argparse
 from generate_voxels import show_shape
-from marching_cube_utils import *
+
+import os
+import sys
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+from utils import *
 
 
 def load_voxel(filename):
