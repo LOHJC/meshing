@@ -337,6 +337,7 @@ def surface_nets(voxel_data, iso_value=0.5):
     face_values = []  # for coloring
     cube_vertex_idx = {}
 
+    voxel_data = np.pad(voxel_data, pad_width=1, mode="constant", constant_values=0)
     width, height, depth = voxel_data.shape
     cube_x, cube_y, cube_z = width - 1, height - 1, depth - 1
     for i in range(cube_x):
